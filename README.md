@@ -1,31 +1,34 @@
 # PIXEL Hub
 
-Fundação full-stack do sistema de gestão do grupo PIXEL.
+Plataforma de trabalho do grupo PIXEL. Esta primeira entrega inclui login por credenciais, dashboard, projetos, tarefas, pessoas e calendário, com PostgreSQL persistente.
 
-## Stack
-- Next.js App Router + TypeScript strict
-- Auth.js com credenciais e sessão JWT
-- PostgreSQL + Drizzle ORM
-- Modelo inicial para usuários, papéis, permissões, projetos, tarefas, notificações e auditoria
-- GitHub Actions, Vitest e Playwright
+## Requisitos
 
-## Configuração local
-1. Instale Node.js 20.9+.
-2. Copie `.env.example` para `.env.local`.
-3. Defina `DATABASE_URL` para um PostgreSQL disponível e gere um `AUTH_SECRET` aleatório.
-4. Execute `npm install` e `npm run dev`.
+- Node.js 22 ou superior
+- PostgreSQL
+- Uma chave aleatória para AUTH_SECRET
 
-A migration inicial está em `migrations/0001_foundation.sql`; aplique-a a um banco PostgreSQL antes de utilizar as rotas autenticadas. Não há senha de administrador embutida no código. O provisionamento inicial de usuários deve ser feito com segurança antes da abertura do sistema.
+## Desenvolvimento local
 
-## Comandos
-```bash
-npm run dev
-npm run lint
-npm run typecheck
-npm test
-npm run test:e2e
-npm run build
-`
+1. Copie `.env.example` para `.env.local` e preencha `DATABASE_URL` e `AUTH_SECRET`.
+2. Instale dependências: `npm install`.
+3. Aplique as migrations: `npm run db:migrate`.
+4. Crie a primeira conta administrativa: preencha temporariamente `SEED_ADMIN_EMAIL`, `SEED_ADMIN_NAME` e `SEED_ADMIN_PASSWORD` com valores próprios, então rode `npm run db:seed`. A senha precisa ter de 12 a 72 caracteres; não há senha padrão.
+5. Remova `SEED_ADMIN_PASSWORD` do ambiente após o bootstrap.
+6. Inicie: `npm run dev`.
 
-## Estado
-Esta branch introduz a fundação e não representa, sozinha, a conclusão de todos os módulos funcionais ou uma implantação de produção. Configure as variáveis e execute a suíte de validação antes do deploy.
+O seed não altera contas já existentes. Redefinição de senha e convites ainda precisam de um fluxo administrativo próprio.
+
+## Núcleo operacional
+
+- Visão geral com atividade, projetos, tarefas e agenda.
+- Cadastro e lista de projetos.
+- Cadastro, organização e conclusão de tarefas.
+- Diretório de pessoas provisionadas.
+- Calendário de reuniões, prazos, eventos e treinamentos.
+
+## Próximas fases
+
+Governança, pesquisa, extensão, produtos, PIXEL Sports, notificações, aprovações, gestão de arquivos, gamificação, recuperação de senha, convite de usuários e testes E2E ainda não foram implementados.
+
+Os códigos internos de cobertura funcional são mantidos fora da navegação comum.
