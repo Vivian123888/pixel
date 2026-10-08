@@ -1,1 +1,7 @@
-import {auth} from "@/auth";import {NextResponse} from "next/server";export default auth(req=>{if(req.nextUrl.pathname.startsWith("/dashboard")&&!req.auth)return NextResponse.redirect(new URL("/login",req.url));return NextResponse.next()});export const config={matcher:["/dashboard/:path*"]};
+import { NextResponse } from "next/server";
+
+export default function proxy() {
+  return NextResponse.next();
+}
+
+export const config = { matcher: ["/dashboard/:path*"] };
