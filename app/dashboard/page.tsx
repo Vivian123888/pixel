@@ -1,1 +1,40 @@
-import {auth} from "@/auth";import {getDb} from "@/lib/db";import {projects,tasks} from "@/lib/db/schema";import {count,desc} from "drizzle-orm";export const dynamic="force-dynamic";export default async function DashboardPage(){const session=await auth();let projectCount=0,taskCount=0,recent:{name:string;status:string}[]=[];let configured=true;try{const db=getDb();const[p,t]=await Promise.all([db.select({value:count()}).from(projects),db.select({value:count()}).from(tasks)]);projectCount=Number(p[0]?.value??0);taskCount=Number(t[0]?.value??0);recent=await db.select({name:projects.name,status:projects.status}).from(projects).orderBy(desc(projects.createdAt)).limit(5)}catch{configured=false}return <><div className="heading"><h1>Olá, {session?.user?.name?.split(" ")[0]??"integrante"}!</h1><p>Visão geral do trabalho do grupo PIXEL.</p></div>{!configured&&<div className="notice"><strong>Banco de dados pendente.</strong> Configure DATABASE_URL e aplique a migration antes de usar os dados.</div>}<div className="grid"><section className="card span4"><div className="metric">Projetos cadastrados</div><div className="value">{projectCount}</div></section><section className="card span4"><div className="metric">Tarefas registradas</div><div className="value">{taskCount}</div></section><section className="card span4"><div className="metric">Acesso</div><div className="value" style={{fontSize:22}}>Autenticado</div></section><section className="card span8"><h3>Projetos recentes</h3>{recent.length?<div className="list">{recent.map(p=><div className="item" key={p.name}><strong>{p.name}</strong><div className="muted">{p.status}</div></div>)}</div>:<div className="empty">Nenhum projeto cadastrado ainda.</div>}</section><section className="card span4"><h3>Plataforma</h3><p className="muted">Base full-stack com Next.js, PostgreSQL, controle de sessão e estrutura de permissões.</p></section></div></>}
+import { getDb } from "@/lib/db";
+import { calendarEvents, projects, tasks } from "@/lib/db/schema";
+import { and, count, desc, eq, gte, lte } from "drizzle-orm";
+import Link from "next/link";
+import { ArrowUpRight, BriefcaseBusiness, CalendarDays, CheckCircle2, Circle, ClipboardList, FolderKanban, ListTodo, Users } from "lucide-react";
+
+export const dynamic = "force-dynamic";
+function saoPauloToday() {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return new Date(Date.UTC(Number(value.year), Number(value.month) - 1, Number(value.day), 3));
+}
+export default async function DashboardPage() {
+  const db = getDb();
+  const today = saoPauloToday();
+  const tomorrow = new Date(today); tomorrow.setUTCDate(tomorrow.getUTCDate()+1);
+  const [projectCount, openTasks, dueToday, projectRows, taskRows, events] = await Promise.all([
+    db.select({value:count()}).from(projects),
+    db.select({value:count()}).from(tasks).where(eq(tasks.status,"TODO")),
+    db.select({value:count()}).from(tasks).where(and(gte(tasks.dueAt,today),lte(tasks.dueAt,tomorrow))),
+    db.select({id:projects.id,name:projects.name,status:projects.status}).from(projects).orderBy(desc(projects.createdAt)).limit(3),
+    db.select({id:tasks.id,title:tasks.title,dueAt:tasks.dueAt,priority:tasks.priority}).from(tasks).where(eq(tasks.status,"TODO")).orderBy(tasks.dueAt).limit(4),
+    db.select({id:calendarEvents.id,title:calendarEvents.title,startsAt:calendarEvents.startsAt,kind:calendarEvents.kind}).from(calendarEvents).where(gte(calendarEvents.startsAt,today)).orderBy(calendarEvents.startsAt).limit(3),
+  ]);
+  const todayLabel = new Intl.DateTimeFormat("pt-BR", { timeZone:"America/Sao_Paulo", weekday:"long", day:"2-digit", month:"long" }).format(new Date());
+  return <><div className="welcome"><div><p className="eyebrow">{todayLabel.toLocaleUpperCase("pt-BR")}</p><h1>O que vamos fazer acontecer?</h1><p>Seu espaço de trabalho para acompanhar o PIXEL.</p></div><Link className="btn" href="/dashboard/tasks"><ClipboardList size={17}/> Ver meu trabalho</Link></div>
+    <section className="metric-grid">
+      <Link href="/dashboard/projects" className="metric-card"><span>Projetos</span><strong>{projectCount[0]?.value??0}</strong><i><FolderKanban size={18}/></i><small>Iniciativas cadastradas</small></Link>
+      <Link href="/dashboard/tasks" className="metric-card"><span>Tarefas em aberto</span><strong>{openTasks[0]?.value??0}</strong><i><ListTodo size={18}/></i><small>{dueToday[0]?.value??0} com prazo hoje</small></Link>
+      <Link href="/dashboard/people" className="metric-card"><span>Comunidade</span><strong>PIXEL</strong><i><Users size={18}/></i><small>Pessoas e colaboradores</small></Link>
+    </section>
+    <section className="dashboard-columns"><div className="card dash-panel"><div className="panel-head"><div><h2>Meu trabalho</h2><p>Próximas tarefas</p></div><Link href="/dashboard/tasks">Ver todas <ArrowUpRight size={15}/></Link></div>
+      {taskRows.length?taskRows.map(t=><div className="mini-row" key={t.id}><Circle size={17}/><div><strong>{t.title}</strong><span>{t.dueAt?"Prazo "+new Intl.DateTimeFormat("pt-BR").format(t.dueAt):"Sem prazo"}</span></div><span className={"priority-mark "+t.priority.toLowerCase()} /></div>):<div className="empty compact"><CheckCircle2 size={23}/><span>Nenhuma tarefa em aberto. Bom trabalho!</span></div>}
+    </div><div className="card dash-panel"><div className="panel-head"><div><h2>Agenda</h2><p>Próximos compromissos</p></div><Link href="/dashboard/calendar">Calendário <ArrowUpRight size={15}/></Link></div>
+      {events.length?events.map(e=><div className="agenda-mini" key={e.id}><div className="event-date small"><strong>{new Intl.DateTimeFormat("pt-BR",{day:"2-digit"}).format(e.startsAt)}</strong><span>{new Intl.DateTimeFormat("pt-BR",{month:"short"}).format(e.startsAt)}</span></div><div><strong>{e.title}</strong><span>{new Intl.DateTimeFormat("pt-BR",{weekday:"short",hour:"2-digit",minute:"2-digit"}).format(e.startsAt)}</span></div></div>):<div className="empty compact"><CalendarDays size={23}/><span>Nenhum compromisso próximo.</span></div>}
+    </div></section>
+    <section className="card dash-panel portfolio"><div className="panel-head"><div><h2>Projetos recentes</h2><p>O que está em movimento</p></div><Link href="/dashboard/projects">Ver projetos <ArrowUpRight size={15}/></Link></div>
+    {projectRows.length?<div className="project-strip">{projectRows.map(p=><div className="project-chip" key={p.id}><BriefcaseBusiness size={17}/><div><strong>{p.name}</strong><span>{p.status==="ACTIVE"?"Ativo":p.status==="PLANNING"?"Planejamento":p.status==="PAUSED"?"Pausado":"Concluído"}</span></div></div>)}</div>:<div className="empty compact"><FolderKanban size={23}/><span>Crie o primeiro projeto para ver seu portfólio aqui.</span></div>}</section>
+  </>;
+}
