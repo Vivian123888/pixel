@@ -11,6 +11,9 @@ function saoPauloToday() {
   return new Date(Date.UTC(Number(value.year), Number(value.month) - 1, Number(value.day), 3));
 }
 export default async function DashboardPage() {
+  if (!process.env.DATABASE_URL) {
+    return <><div className="welcome"><div><p className="eyebrow">PIXEL HUB</p><h1>Seu espaço de trabalho está pronto</h1><p>O acesso público foi ativado.</p></div></div><section className="card dash-panel"><h2>Conecte o banco de dados</h2><p>Para carregar projetos, tarefas, pessoas e agenda, configure a variável <strong>DATABASE_URL</strong> no projeto da Vercel e aplique as migrations do banco.</p><p>Depois de salvar a variável, faça um novo deployment para ativar os módulos.</p></section></>;
+  }
   const db = getDb();
   const today = saoPauloToday();
   const tomorrow = new Date(today); tomorrow.setUTCDate(tomorrow.getUTCDate()+1);
