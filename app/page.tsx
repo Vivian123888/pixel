@@ -1,1 +1,5 @@
-import {redirect} from "next/navigation";import {auth} from "@/auth";export default async function Home(){redirect((await auth())?"/dashboard":"/login")}
+import { redirect } from "next/navigation";
+
+export default function Home() {
+  redirect("/dashboard");
+}
