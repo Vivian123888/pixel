@@ -1,0 +1,1 @@
+import bcrypt from "bcryptjs";export async function hashPassword(password:string){if(password.length<8||password.length>72)throw new Error("Password must be 8-72 characters.");return bcrypt.hash(password,12)}export async function verifyPassword(password:string,hash:string){if(password.length<8||password.length>72)return false;return bcrypt.compare(password,hash)}
