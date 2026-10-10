@@ -3,6 +3,7 @@ import { calendarEvents, projects, tasks } from "@/lib/db/schema";
 import { and, count, desc, eq, gte, lte } from "drizzle-orm";
 import Link from "next/link";
 import { ArrowUpRight, BriefcaseBusiness, CalendarDays, CheckCircle2, Circle, ClipboardList, FolderKanban, ListTodo, Users } from "lucide-react";
+import { requireUser } from "@/lib/auth/permissions";
 
 export const dynamic = "force-dynamic";
 function saoPauloToday() {
@@ -11,6 +12,7 @@ function saoPauloToday() {
   return new Date(Date.UTC(Number(value.year), Number(value.month) - 1, Number(value.day), 3));
 }
 export default async function DashboardPage() {
+  const user = await requireUser();
   if (!process.env.DATABASE_URL) {
     return <><div className="welcome"><div><p className="eyebrow">PIXEL HUB</p><h1>Seu espaço de trabalho está pronto</h1><p>O acesso público foi ativado.</p></div></div><section className="card dash-panel"><h2>Conecte o banco de dados</h2><p>Para carregar projetos, tarefas, pessoas e agenda, configure a variável <strong>DATABASE_URL</strong> no projeto da Vercel e aplique as migrations do banco.</p><p>Depois de salvar a variável, faça um novo deployment para ativar os módulos.</p></section></>;
   }
@@ -30,7 +32,7 @@ export default async function DashboardPage() {
     <section className="metric-grid">
       <Link href="/dashboard/projects" className="metric-card"><span>Projetos</span><strong>{projectCount[0]?.value??0}</strong><i><FolderKanban size={18}/></i><small>Iniciativas cadastradas</small></Link>
       <Link href="/dashboard/tasks" className="metric-card"><span>Tarefas em aberto</span><strong>{openTasks[0]?.value??0}</strong><i><ListTodo size={18}/></i><small>{dueToday[0]?.value??0} com prazo hoje</small></Link>
-      <Link href="/dashboard/people" className="metric-card"><span>Comunidade</span><strong>PIXEL</strong><i><Users size={18}/></i><small>Pessoas e colaboradores</small></Link>
+      {user.role === "ADMIN" && <Link href="/dashboard/people" className="metric-card"><span>Comunidade</span><strong>PIXEL</strong><i><Users size={18}/></i><small>Pessoas e colaboradores</small></Link>}
     </section>
     <section className="dashboard-columns"><div className="card dash-panel"><div className="panel-head"><div><h2>Meu trabalho</h2><p>Próximas tarefas</p></div><Link href="/dashboard/tasks">Ver todas <ArrowUpRight size={15}/></Link></div>
       {taskRows.length?taskRows.map(t=><div className="mini-row" key={t.id}><Circle size={17}/><div><strong>{t.title}</strong><span>{t.dueAt?"Prazo "+new Intl.DateTimeFormat("pt-BR").format(t.dueAt):"Sem prazo"}</span></div><span className={"priority-mark "+t.priority.toLowerCase()} /></div>):<div className="empty compact"><CheckCircle2 size={23}/><span>Nenhuma tarefa em aberto. Bom trabalho!</span></div>}
