@@ -22,13 +22,13 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <div className="brand-mark">P</div><p className="eyebrow">PIXEL HUB</p><h1>Entrar no espaço de trabalho</h1>
     {query.error && <p className="form-error" role="alert">E-mail ou senha inválidos. Confira os dados e tente novamente.</p>}
     {query.invited && <p className="form-success">Conta ativada. Entre com o e-mail e a senha que você criou.</p>}
-    {query.setup && <p className="form-success">Conta administrativa criada. Entre para continuar.</p>}
-    {query.blocked && <p className="form-error" role="alert">Esta conta não está ativa. Fale com a administração do PIXEL.</p>}
+    {query.registered && <p className="form-success">Conta criada. Entre com o e-mail e a senha cadastrados.</p>}
+    {query.blocked && <p className="form-error" role="alert">Esta conta não está ativa. Peça ajuda a uma pessoa da equipe.</p>}
     <form action={login} className="form-grid">
       <label className="field wide">E-mail<input name="email" type="email" autoComplete="username" required/></label>
       <label className="field wide">Senha<input name="password" type="password" autoComplete="current-password" required minLength={12}/></label>
       <button className="btn" type="submit">Entrar</button>
     </form>
-    <p className="auth-foot">Primeiro acesso administrativo? <a href="/setup">Ativar conta</a></p>
+    <p className="auth-foot">Ainda não tem acesso? <a href="/register">Criar conta com código compartilhado</a></p>
   </section></main>;
 }
