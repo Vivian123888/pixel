@@ -3,6 +3,7 @@ import { calendarEvents, projects, tasks } from "@/lib/db/schema";
 import { and, count, desc, eq, gte, lte } from "drizzle-orm";
 import Link from "next/link";
 import { ArrowUpRight, BriefcaseBusiness, CalendarDays, CheckCircle2, Circle, ClipboardList, FolderKanban, ListTodo, Users } from "lucide-react";
+import { requireUser } from "@/lib/auth/permissions";
 
 export const dynamic = "force-dynamic";
 function saoPauloToday() {
@@ -11,6 +12,7 @@ function saoPauloToday() {
   return new Date(Date.UTC(Number(value.year), Number(value.month) - 1, Number(value.day), 3));
 }
 export default async function DashboardPage() {
+  await requireUser();
   if (!process.env.DATABASE_URL) {
     return <><div className="welcome"><div><p className="eyebrow">PIXEL HUB</p><h1>Seu espaço de trabalho está pronto</h1><p>O acesso público foi ativado.</p></div></div><section className="card dash-panel"><h2>Conecte o banco de dados</h2><p>Para carregar projetos, tarefas, pessoas e agenda, configure a variável <strong>DATABASE_URL</strong> no projeto da Vercel e aplique as migrations do banco.</p><p>Depois de salvar a variável, faça um novo deployment para ativar os módulos.</p></section></>;
   }

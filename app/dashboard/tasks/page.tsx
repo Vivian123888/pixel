@@ -3,20 +3,24 @@ import { getDb } from "@/lib/db";
 import { projects, tasks } from "@/lib/db/schema";
 import { asc, desc, eq } from "drizzle-orm";
 import { Check, Circle, ListTodo } from "lucide-react";
+import { requireUser } from "@/lib/auth/permissions";
 
 export const dynamic = "force-dynamic";
 const priorities: Record<string, string> = { LOW: "Baixa", MEDIUM: "Média", HIGH: "Alta", URGENT: "Urgente" };
 export default async function TasksPage() {
+  const user = await requireUser();
+  void user;
   const db = getDb();
   const [rows, projectRows] = await Promise.all([
-    db.select({ id: tasks.id, title: tasks.title, description: tasks.description, status: tasks.status, priority: tasks.priority, dueAt: tasks.dueAt, projectName: projects.name }).from(tasks).leftJoin(projects, eq(tasks.projectId, projects.id)).orderBy(asc(tasks.dueAt), desc(tasks.createdAt)),
+    db.select({ id: tasks.id, title: tasks.title, description: tasks.description, status: tasks.status, priority: tasks.priority, dueAt: tasks.dueAt, projectName: projects.name, projectId: tasks.projectId, responsibleId: tasks.responsibleId }).from(tasks).leftJoin(projects, eq(tasks.projectId, projects.id)).orderBy(asc(tasks.dueAt), desc(tasks.createdAt)),
     db.select({ id: projects.id, name: projects.name }).from(projects).orderBy(asc(projects.name)),
   ]);
+  const visibleProjects = projectRows;
   return <><div className="heading"><p className="eyebrow">EXECUÇÃO</p><h1>Tarefas</h1><p>Organize próximos passos e acompanhe o que já foi concluído.</p></div>
     <section className="card form-card"><h2>Adicionar tarefa</h2><form action={createTask} className="form-grid">
       <label className="field">Tarefa<input name="title" required maxLength={220} placeholder="O que precisa ser feito?"/></label>
       <label className="field">Prioridade<select name="priority" defaultValue="MEDIUM"><option value="LOW">Baixa</option><option value="MEDIUM">Média</option><option value="HIGH">Alta</option><option value="URGENT">Urgente</option></select></label>
-      <label className="field">Projeto<select name="projectId" defaultValue=""><option value="">Sem projeto</option>{projectRows.map((p)=><option value={p.id} key={p.id}>{p.name}</option>)}</select></label>
+      <label className="field">Projeto<select name="projectId" defaultValue=""><option value="">Sem projeto</option>{visibleProjects.map((p)=><option value={p.id} key={p.id}>{p.name}</option>)}</select></label>
       <label className="field">Prazo<input type="date" name="dueAt"/></label>
       <label className="field wide">Detalhes<textarea name="description" rows={2} maxLength={2000}/></label><button className="btn">Adicionar tarefa</button>
     </form></section>

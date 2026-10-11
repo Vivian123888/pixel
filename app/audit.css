@@ -1,0 +1,9 @@
+.audit-list{display:grid;gap:9px}
+.audit-row{display:flex;align-items:flex-start;gap:12px;padding:15px}
+.audit-icon{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border-radius:9px;background:#edf4ff;color:#3478f6}
+.audit-main{display:grid;gap:5px;flex:1;min-width:0}
+.audit-main strong{font-size:12px;line-height:1.45}
+.audit-main span,.audit-main small,.audit-row time{font-size:10px;color:var(--muted);line-height:1.5}
+.audit-main small{overflow-wrap:anywhere}
+.audit-row time{white-space:nowrap}
+@media(max-width:760px){.nav{grid-template-columns:repeat(6,minmax(0,1fr))}.nav a{font-size:8px}.audit-row{gap:9px;padding:12px}.audit-row time{font-size:9px}}
