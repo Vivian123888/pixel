@@ -1,0 +1,14 @@
+import { BarChart3, FileCheck2, FlaskConical, Gamepad2, Megaphone, Trophy } from "lucide-react";
+
+export const workspaces = {
+  governanca: { title: "Governança", eyebrow: "GOVERNANÇA E OPERAÇÕES", description: "Planejamento, decisões, recursos e indicadores integrados para o PIXEL.", coverage: "G1.01 – G1.13", Icon: BarChart3, categories: ["Planejamento estratégico", "Portfólio PIXEL", "Capacidade do laboratório", "Calendário e reuniões", "Decisões", "Gestão documental", "Base de conhecimento", "Indicadores", "Riscos", "Recursos e orçamento", "Infraestrutura digital", "Melhoria contínua"] },
+  pesquisa: { title: "Pesquisa", eyebrow: "PESQUISA CIENTÍFICA", description: "Acompanhe projetos de pesquisa, manuscritos, revisões, dados e prazos de publicação.", coverage: "G4.01 – G4.31", Icon: FlaskConical, categories: ["Linhas de pesquisa", "Banco de problemas", "Projeto de pesquisa", "Revisão de literatura", "Protocolo metodológico", "Ética", "Instrumentos", "Participantes", "Manuscrito", "Artigo em preparação", "Em redação", "Revisão interna", "Submetido", "Dataset", "Prazo de submissão", "Evento científico"] },
+  sports: { title: "PIXEL Sports", eyebrow: "OPERAÇÕES COMPETITIVAS", description: "Organize equipes, atletas, competições, treinos e análise de desempenho.", coverage: "G1.14–G1.17 · G2.21–G2.29 · G3.31–G3.37 · G4.32–G4.33 · G5.28–G5.50", Icon: Gamepad2, categories: ["Equipe", "Atleta", "Competição", "Treino", "Análise de jogo", "Replay", "Roster", "Disponibilidade", "Desenvolvimento", "Conduta", "Prospecção", "Parceria", "Solicitação de ferramenta"] },
+  extensao: { title: "Extensão & Comunicação", eyebrow: "IMPACTO E COMUNICAÇÃO", description: "Registre ações, beneficiários, parcerias, conteúdo e resultados de extensão.", coverage: "G5.01 – G5.27", Icon: Megaphone, categories: ["Oportunidade", "Projeto de extensão", "PBEXT", "Ação", "Beneficiários", "Impacto", "Relatório", "Conteúdo para divulgação", "Redes sociais", "Parceria", "Evento", "Memória", "Métrica pública"] },
+  arquivos: { title: "Arquivos & Aprovações", eyebrow: "REPOSITÓRIO TRANSVERSAL", description: "Centralize documentos e evidências, acompanhe versões, aprovações, comentários e assinaturas.", coverage: "Usado por todos os módulos", Icon: FileCheck2, categories: ["Documento", "Evidência", "Modelo", "Solicitação de aprovação", "Comentário", "Assinatura", "Pendência"] },
+  gamificacao: { title: "Gamificação", eyebrow: "CONTRIBUIÇÕES E RECONHECIMENTO", description: "Acompanhe missões, trilhas de experiência, conquistas e contribuições da comunidade.", coverage: "Eventos de todos os módulos", Icon: Trophy, categories: ["Missão", "Conquista", "Trilha de experiência", "Recompensa", "Evento de XP"] },
+} as const;
+
+export type WorkspaceKey = keyof typeof workspaces;
+export function isWorkspaceKey(value: string): value is WorkspaceKey { return value in workspaces; }
+
