@@ -1,16 +1,21 @@
 import { createProject, updateProject } from "@/lib/actions";
 import { requireUser } from "@/lib/auth/permissions";
 import { getDb } from "@/lib/db";
-import { projects } from "@/lib/db/schema";
-import { desc } from "drizzle-orm";
-import { FolderKanban, Plus } from "lucide-react";
+import { projects, tasks } from "@/lib/db/schema";
+import { count, desc, eq } from "drizzle-orm";
+import Link from "next/link";
+import { ClipboardList, FolderKanban, Plus } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 const states: Record<string, string> = { PLANNING: "Planejamento", ACTIVE: "Ativo", PAUSED: "Pausado", COMPLETED: "Concluído", ARCHIVED: "Arquivado" };
 export default async function ProjectsPage() {
   await requireUser();
   const rows = await getDb().select().from(projects).orderBy(desc(projects.createdAt));
-  return <><div className="heading"><div><p className="eyebrow">PORTFÓLIO</p><h1>Projetos</h1><p>Acompanhe iniciativas, equipes e entregas do grupo.</p></div></div>
+  const [openTasks] = await getDb().select({ value: count() }).from(tasks).where(eq(tasks.status, "TODO"));
+  const active = rows.filter((project) => project.status === "ACTIVE").length;
+  const planning = rows.filter((project) => project.status === "PLANNING").length;
+  return <><div className="heading"><div><p className="eyebrow">PORTFÓLIO</p><h1>Projetos &amp; Produtos</h1><p>Acompanhe iniciativas, equipes e entregas do grupo, da concepção ao pós-lançamento.</p><Link className="btn btn-small" href="/dashboard/modules/projetos"><ClipboardList size={16}/> Abrir ciclo de vida G3.01–G3.30</Link></div></div>
+    <section className="metric-grid workspace-metrics"><div className="metric-card metric-blue"><span>Projetos cadastrados</span><strong>{rows.length}</strong><i><FolderKanban size={19}/></i><small>Portfólio atual do PIXEL</small></div><div className="metric-card metric-green"><span>Ativos</span><strong>{active}</strong><i><FolderKanban size={19}/></i><small>Em execução</small></div><div className="metric-card metric-purple"><span>Em planejamento</span><strong>{planning}</strong><i><Plus size={19}/></i><small>Preparação e concepção</small></div><Link className="metric-card metric-amber" href="/dashboard/tasks"><span>Tarefas abertas</span><strong>{openTasks.value}</strong><i><ClipboardList size={19}/></i><small>Entregas aguardando ação</small></Link></section>
     <section className="card form-card"><h2><Plus size={18}/> Novo projeto</h2><form action={createProject} className="form-grid">
       <label className="field">Nome<input name="name" required minLength={2} maxLength={180} placeholder="Ex.: Laboratório de jogos acessíveis"/></label>
       <label className="field">Status<select name="status" defaultValue="PLANNING"><option value="PLANNING">Planejamento</option><option value="ACTIVE">Ativo</option><option value="PAUSED">Pausado</option><option value="COMPLETED">Concluído</option></select></label>
@@ -23,3 +28,4 @@ export default async function ProjectsPage() {
       <div className="project-footer">Criado em {new Intl.DateTimeFormat("pt-BR").format(p.createdAt)}</div></article>)}</div> : <div className="card empty"><FolderKanban size={26}/><strong>Nenhum projeto ainda</strong><span>Crie a primeira iniciativa do PIXEL.</span></div>}
   </>;
 }
+
