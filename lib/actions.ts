@@ -2,7 +2,7 @@
 
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { getDb } from "@/lib/db";
-import { auditLogs, calendarEvents, moduleEntries, projects, tasks, users } from "@/lib/db/schema";
+import { auditLogs, calendarEvents, moduleEntries, moduleFileVersions, projects, tasks, users } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth/permissions";
 import { hashPassword } from "@/lib/auth/password";
 import { desc, eq } from "drizzle-orm";
@@ -116,21 +116,62 @@ export async function markTaskDone(formData: FormData) {
   revalidatePath("/dashboard/history");
 }
 
+const optionalCount = (max: number) => z.preprocess((value) => value === "" || value == null ? undefined : value, z.coerce.number().int().min(0).max(max).optional());
 const moduleEntryInput = z.object({
-  module: z.enum(["governanca", "pesquisa", "sports", "extensao", "arquivos", "gamificacao"]),
+  module: z.enum(["projetos", "governanca", "pesquisa", "sports", "extensao", "arquivos", "gamificacao", "pessoas"]),
   category: z.string().trim().min(2).max(100),
   title: z.string().trim().min(2).max(220),
   description: z.string().trim().max(3000).optional(),
   status: z.enum(["PLANEJAMENTO", "EM_ANDAMENTO", "EM_REVISAO", "PENDENTE", "APROVADO", "CONCLUIDO", "ARQUIVADO"]),
+  assigneeId: z.string().uuid().optional().or(z.literal("")),
+  dueDate: z.string().optional(),
+  progress: optionalCount(100),
+  points: optionalCount(100000),
+  beneficiaries: optionalCount(10000000),
+  link: z.string().trim().max(1000).optional(),
+  version: z.string().trim().max(40).optional(),
+  platform: z.string().trim().max(100).optional(),
+  team: z.string().trim().max(120).optional(),
+  target: z.string().trim().max(180).optional(),
+  metricLabel: z.string().trim().max(100).optional(),
+  partner: z.string().trim().max(180).optional(),
+  competency: z.string().trim().max(120).optional(),
+  hours: optionalCount(80),
+  score: optionalCount(5),
 });
+
+const allowedFileTypes = new Set(["application/pdf", "image/png", "image/jpeg", "image/webp", "text/plain", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.openxmlformats-officedocument.presentationml.presentation"]);
+async function readModuleFile(formData: FormData, module: string) {
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return null;
+  if (module !== "arquivos") throw new Error("Anexe arquivos apenas no módulo Arquivos & Aprovações.");
+  if (file.size > 3 * 1024 * 1024) throw new Error("O limite por arquivo é 3 MB.");
+  if (!allowedFileTypes.has(file.type)) throw new Error("Tipo de arquivo não permitido. Use PDF, imagem, texto, Word, Excel ou PowerPoint.");
+  const fileName = file.name.replace(/[\\/\r\n\0]/g, "_").slice(0, 180);
+  return { data: Buffer.from(await file.arrayBuffer()), fileName, contentType: file.type, fileSize: file.size };
+}
+
+function moduleMetadata(data: z.infer<typeof moduleEntryInput>, file?: { fileName: string; contentType: string; fileSize: number; fileVersion: number } | null) {
+  const metadata: Record<string, unknown> = {};
+  for (const key of ["dueDate", "progress", "points", "beneficiaries", "link", "version", "platform", "team", "target", "metricLabel", "partner", "competency", "hours", "score"] as const) {
+    const value = data[key];
+    if (value !== undefined && value !== "") metadata[key] = value;
+  }
+  if (file) Object.assign(metadata, file);
+  return metadata;
+}
 
 export async function createModuleEntry(formData: FormData) {
   const user = await requireUser();
   const data = moduleEntryInput.parse(Object.fromEntries(formData));
+  const file = await readModuleFile(formData, data.module);
+  const metadata = moduleMetadata(data, file ? { fileName: file.fileName, contentType: file.contentType, fileSize: file.fileSize, fileVersion: 1 } : null);
   const db = getDb();
   await db.transaction(async (tx) => {
-    const [entry] = await tx.insert(moduleEntries).values({ ...data, ownerId: user.id }).returning({ id: moduleEntries.id });
-    await tx.insert(auditLogs).values({ actorId: user.id, action: "module_entry.created", objectType: data.module, objectId: entry.id, details: { title: { before: null, after: data.title }, category: { before: null, after: data.category }, status: { before: null, after: data.status } } });
+    const [entry] = await tx.insert(moduleEntries).values({ module: data.module, category: data.category, title: data.title, description: data.description || null, status: data.status, metadata, ownerId: user.id, assigneeId: data.assigneeId || user.id, fileData: file?.data ?? null }).returning({ id: moduleEntries.id });
+    if (file) await tx.insert(moduleFileVersions).values({ entryId: entry.id, version: 1, fileName: file.fileName, contentType: file.contentType, fileSize: file.fileSize, fileData: file.data, uploadedBy: user.id });
+    const details = Object.fromEntries(Object.entries({ title: data.title, category: data.category, status: data.status, ...metadata, assigneeId: data.assigneeId || user.id }).map(([key, value]) => [key, { before: null, after: value }]));
+    await tx.insert(auditLogs).values({ actorId: user.id, action: "module_entry.created", objectType: data.module, objectId: entry.id, details });
   });
   revalidatePath(`/dashboard/modules/${data.module}`);
   revalidatePath("/dashboard/history");
@@ -140,12 +181,25 @@ export async function updateModuleEntry(formData: FormData) {
   const user = await requireUser();
   const id = z.string().uuid().parse(formData.get("id"));
   const data = moduleEntryInput.parse(Object.fromEntries(formData));
+  const file = await readModuleFile(formData, data.module);
   const db = getDb();
   await db.transaction(async (tx) => {
-    const [before] = await tx.select().from(moduleEntries).where(eq(moduleEntries.id, id)).limit(1);
+    const [before] = await tx.select({ id: moduleEntries.id, module: moduleEntries.module, category: moduleEntries.category, title: moduleEntries.title, description: moduleEntries.description, status: moduleEntries.status, metadata: moduleEntries.metadata, assigneeId: moduleEntries.assigneeId, fileData: moduleEntries.fileData }).from(moduleEntries).where(eq(moduleEntries.id, id)).limit(1);
     if (!before || before.module !== data.module) throw new Error("Registro não encontrado neste módulo.");
-    const [after] = await tx.update(moduleEntries).set({ category: data.category, title: data.title, description: data.description || null, status: data.status, updatedAt: new Date() }).where(eq(moduleEntries.id, id)).returning({ id: moduleEntries.id });
-    const changed = Object.fromEntries((["category", "title", "description", "status"] as const).filter((field) => (before[field] ?? "") !== (data[field] ?? "")).map((field) => [field, { before: before[field] ?? null, after: data[field] ?? null }]));
+    const previousMeta = before.metadata ?? {};
+    const currentFileVersion = Number(previousMeta.fileVersion ?? (before.fileData ? 1 : 0));
+    if (file && before.fileData && typeof previousMeta.fileName === "string" && typeof previousMeta.contentType === "string") {
+      await tx.insert(moduleFileVersions).values({ entryId: id, version: currentFileVersion, fileName: previousMeta.fileName, contentType: previousMeta.contentType, fileSize: Number(previousMeta.fileSize ?? 0), fileData: before.fileData, uploadedBy: user.id }).onConflictDoNothing();
+    }
+    const nextMeta = moduleMetadata(data, file ? { fileName: file.fileName, contentType: file.contentType, fileSize: file.fileSize, fileVersion: currentFileVersion + 1 } : null);
+    if (!file) for (const key of ["fileName", "contentType", "fileSize", "fileVersion"]) if (previousMeta[key] !== undefined) nextMeta[key] = previousMeta[key];
+    const assigneeId = data.assigneeId || user.id;
+    const [after] = await tx.update(moduleEntries).set({ category: data.category, title: data.title, description: data.description || null, status: data.status, assigneeId, metadata: nextMeta, ...(file ? { fileData: file.data } : {}), updatedAt: new Date() }).where(eq(moduleEntries.id, id)).returning({ id: moduleEntries.id });
+    if (file) await tx.insert(moduleFileVersions).values({ entryId: id, version: currentFileVersion + 1, fileName: file.fileName, contentType: file.contentType, fileSize: file.fileSize, fileData: file.data, uploadedBy: user.id });
+    const beforeValues: Record<string, unknown> = { category: before.category, title: before.title, description: before.description, status: before.status, assigneeId: before.assigneeId, ...previousMeta };
+    const afterValues: Record<string, unknown> = { category: data.category, title: data.title, description: data.description || null, status: data.status, assigneeId, ...nextMeta };
+    const keys = new Set([...Object.keys(beforeValues), ...Object.keys(afterValues)]);
+    const changed = Object.fromEntries([...keys].filter((key) => JSON.stringify(beforeValues[key] ?? null) !== JSON.stringify(afterValues[key] ?? null)).map((key) => [key, { before: beforeValues[key] ?? null, after: afterValues[key] ?? null }]));
     if (Object.keys(changed).length) await tx.insert(auditLogs).values({ actorId: user.id, action: "module_entry.updated", objectType: data.module, objectId: after.id, details: changed });
   });
   revalidatePath(`/dashboard/modules/${data.module}`);

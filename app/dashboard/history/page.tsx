@@ -17,10 +17,10 @@ const actionLabels: Record<string, string> = {
   "module_entry.updated": "editou um registro",
 };
 const fieldLabels: Record<string, string> = {
-  name: "Nome", description: "Descrição", status: "Status", sheetAcronym: "Sigla", sheetType: "Tipo", sheetTargetAudience: "Público-alvo", title: "Título", projectId: "Projeto", category: "Área",
+  name: "Nome", description: "Descrição", status: "Status", sheetAcronym: "Sigla", sheetType: "Tipo", sheetTargetAudience: "Público-alvo", title: "Título", projectId: "Projeto", category: "Área", assigneeId: "Responsável", dueDate: "Prazo", progress: "Progresso", points: "XP", beneficiaries: "Beneficiários", link: "Link", version: "Versão", platform: "Plataforma", team: "Equipe", target: "Meta", metricLabel: "Indicador", partner: "Parceiro", competency: "Competência", hours: "Carga horária semanal", score: "Desempenho", fileName: "Arquivo", fileVersion: "Versão do arquivo",
 };
 const valueLabels: Record<string, string> = { PLANNING: "Planejamento", ACTIVE: "Ativo", PAUSED: "Pausado", COMPLETED: "Concluído", ARCHIVED: "Arquivado", TODO: "A fazer", IN_PROGRESS: "Em andamento", BLOCKED: "Bloqueado", DONE: "Concluído", CANCELLED: "Cancelado" };
-const objectLabels: Record<string, string> = { project: "Projeto", task: "Tarefa", calendar_event: "Agenda", user: "Equipe", governanca: "Governança", pesquisa: "Pesquisa", sports: "PIXEL Sports", extensao: "Extensão", arquivos: "Arquivos", gamificacao: "Gamificação" };
+const objectLabels: Record<string, string> = { project: "Projeto", task: "Tarefa", calendar_event: "Agenda", user: "Equipe", projetos: "Projetos & Produtos", pessoas: "Pessoas & Jornada", governanca: "Governança", pesquisa: "Pesquisa", sports: "PIXEL Sports", extensao: "Extensão", arquivos: "Arquivos", gamificacao: "Gamificação" };
 function showValue(value: unknown) {
   if (value === null || value === "") return "vazio";
   if (typeof value === "string" && valueLabels[value]) return valueLabels[value];
