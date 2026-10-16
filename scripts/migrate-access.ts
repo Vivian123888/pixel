@@ -8,7 +8,7 @@ async function main() {
   const sql = postgres(url, { prepare: false, max: 1 });
 
   try {
-    for (const name of ["0004_project_permissions.sql", "0005_audit_history.sql", "0006_remove_admin_role.sql", "0007_module_workspaces.sql"]) {
+    for (const name of ["0004_project_permissions.sql", "0005_audit_history.sql", "0006_remove_admin_role.sql", "0007_module_workspaces.sql", "0008_module_workflows.sql"]) {
       const migration = await readFile(path.join(process.cwd(), "migrations", name), "utf8");
       await sql.begin(async (transaction) => {
         await transaction.unsafe(migration);
