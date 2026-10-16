@@ -15,11 +15,11 @@ export default async function WorkspacePage({ params, searchParams }: { params: 
   const [{ module }, query] = await Promise.all([params, searchParams]);
   if (!isWorkspaceKey(module)) return <div className="card empty"><FileText size={28}/><strong>Módulo não encontrado</strong><Link href="/dashboard">Voltar ao início</Link></div>;
   const workspace = workspaces[module];
-  const category = workspace.categories.includes(query.categoria ?? "") ? query.categoria : undefined;
+  const categories: readonly string[] = workspace.categories;
+  const category = categories.includes(query.categoria ?? "") ? query.categoria : undefined;
   const conditions = category ? and(eq(moduleEntries.module, module), eq(moduleEntries.category, category)) : eq(moduleEntries.module, module);
   const rows = await getDb().select({ id: moduleEntries.id, category: moduleEntries.category, title: moduleEntries.title, description: moduleEntries.description, status: moduleEntries.status, updatedAt: moduleEntries.updatedAt, owner: users.name }).from(moduleEntries).leftJoin(users, eq(moduleEntries.ownerId, users.id)).where(conditions).orderBy(desc(moduleEntries.updatedAt)).limit(250);
   const active = rows.filter((row) => !["CONCLUIDO", "ARQUIVADO", "APROVADO"].includes(row.status)).length;
-  const categories = workspace.categories;
   const Icon = workspace.Icon;
   return <>
     <div className="workspace-hero"><div className="workspace-title"><div className="workspace-icon"><Icon size={24}/></div><div><p className="eyebrow">{workspace.eyebrow}</p><h1>{workspace.title}</h1><p>{workspace.description}</p></div></div><div className="coverage-card"><strong>Cobertura</strong><span>{workspace.coverage}</span><small>Informações registradas pela equipe</small></div></div>
