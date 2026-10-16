@@ -33,7 +33,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     headers: {
       "Content-Type": contentType,
       "Content-Disposition": `${disposition}; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
-      "Content-Length": String(row.fileData.byteLength),
+      "Content-Length": String(fileData.byteLength),
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
     },
