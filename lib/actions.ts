@@ -2,7 +2,7 @@
 
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { getDb } from "@/lib/db";
-import { auditLogs, calendarEvents, projects, tasks, users } from "@/lib/db/schema";
+import { auditLogs, calendarEvents, moduleEntries, projects, tasks, users } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth/permissions";
 import { hashPassword } from "@/lib/auth/password";
 import { desc, eq } from "drizzle-orm";
@@ -116,6 +116,42 @@ export async function markTaskDone(formData: FormData) {
   revalidatePath("/dashboard/history");
 }
 
+const moduleEntryInput = z.object({
+  module: z.enum(["governanca", "pesquisa", "sports", "extensao", "arquivos", "gamificacao"]),
+  category: z.string().trim().min(2).max(100),
+  title: z.string().trim().min(2).max(220),
+  description: z.string().trim().max(3000).optional(),
+  status: z.enum(["PLANEJAMENTO", "EM_ANDAMENTO", "EM_REVISAO", "PENDENTE", "APROVADO", "CONCLUIDO", "ARQUIVADO"]),
+});
+
+export async function createModuleEntry(formData: FormData) {
+  const user = await requireUser();
+  const data = moduleEntryInput.parse(Object.fromEntries(formData));
+  const db = getDb();
+  await db.transaction(async (tx) => {
+    const [entry] = await tx.insert(moduleEntries).values({ ...data, ownerId: user.id }).returning({ id: moduleEntries.id });
+    await tx.insert(auditLogs).values({ actorId: user.id, action: "module_entry.created", objectType: data.module, objectId: entry.id, details: { title: { before: null, after: data.title }, category: { before: null, after: data.category }, status: { before: null, after: data.status } } });
+  });
+  revalidatePath(`/dashboard/modules/${data.module}`);
+  revalidatePath("/dashboard/history");
+}
+
+export async function updateModuleEntry(formData: FormData) {
+  const user = await requireUser();
+  const id = z.string().uuid().parse(formData.get("id"));
+  const data = moduleEntryInput.parse(Object.fromEntries(formData));
+  const db = getDb();
+  await db.transaction(async (tx) => {
+    const [before] = await tx.select().from(moduleEntries).where(eq(moduleEntries.id, id)).limit(1);
+    if (!before || before.module !== data.module) throw new Error("Registro não encontrado neste módulo.");
+    const [after] = await tx.update(moduleEntries).set({ category: data.category, title: data.title, description: data.description || null, status: data.status, updatedAt: new Date() }).where(eq(moduleEntries.id, id)).returning({ id: moduleEntries.id });
+    const changed = Object.fromEntries((["category", "title", "description", "status"] as const).filter((field) => (before[field] ?? "") !== (data[field] ?? "")).map((field) => [field, { before: before[field] ?? null, after: data[field] ?? null }]));
+    if (Object.keys(changed).length) await tx.insert(auditLogs).values({ actorId: user.id, action: "module_entry.updated", objectType: data.module, objectId: after.id, details: changed });
+  });
+  revalidatePath(`/dashboard/modules/${data.module}`);
+  revalidatePath("/dashboard/history");
+}
+
 export type RegistrationState = { error?: string };
 export async function registerAccount(_previous: RegistrationState, formData: FormData): Promise<RegistrationState> {
   const parsed = z.object({
@@ -162,3 +198,4 @@ export async function getRecentActivity() {
   ]);
   return { projectRows, taskRows, eventRows };
 }
+
