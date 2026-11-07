@@ -3,14 +3,14 @@ import { asc, count, desc, eq } from "drizzle-orm";
 import { CalendarCheck, Clock3, UserRoundPlus, Users } from "lucide-react";
 import { requireUser } from "@/lib/auth/permissions";
 import { getDb } from "@/lib/db";
-import { moduleEntries, participants, users } from "@/lib/db/schema";
+import { moduleEntries, participants, projects, users } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
 export default async function PeoplePage() {
   await requireUser();
   const db = getDb();
   const [rows, imported, activeCount, journey] = await Promise.all([
-    db.select({ id: users.id, name: users.name, email: users.email, status: users.status, createdAt: users.createdAt }).from(users).orderBy(asc(users.name)),
+    db.select({ id: users.id, name: users.name, email: users.email, status: users.status, createdAt: users.createdAt, pixelRole: users.pixelRole, enteredYear: users.enteredYear, projectName: projects.name }).from(users).leftJoin(projects, eq(users.profileProjectId, projects.id)).orderBy(asc(users.name)),
     db.select().from(participants).orderBy(asc(participants.name)).limit(300),
     db.select({ value: count() }).from(users).where(eq(users.status, "ACTIVE")),
     db.select({ id: moduleEntries.id, title: moduleEntries.title, category: moduleEntries.category, status: moduleEntries.status, metadata: moduleEntries.metadata, updatedAt: moduleEntries.updatedAt }).from(moduleEntries).where(eq(moduleEntries.module, "pessoas")).orderBy(desc(moduleEntries.updatedAt)).limit(8),
@@ -26,7 +26,7 @@ export default async function PeoplePage() {
       <Link className="metric-card metric-amber" href="/dashboard/modules/pessoas"><span>Jornada</span><strong>{journey.length} etapas</strong><i><Clock3 size={19}/></i><small>Vagas, onboarding, alocação e competências</small></Link>
     </section>
     <div className="section-title"><h2>Diretório de integrantes</h2><span>{rows.length} contas</span></div>
-    {rows.length ? <div className="people-grid">{rows.map((person) => <article className="card person-card" key={person.id}><div className="avatar">{person.name.split(/\s+/).slice(0, 2).map((name) => name[0]).join("").toUpperCase()}</div><div><strong>{person.name}</strong><span>{person.email}</span><small>{person.status === "ACTIVE" ? "Conta ativa" : `Conta ${person.status.toLowerCase()}`}</small></div><i className={`status-dot ${person.status.toLowerCase()}`} title={person.status}/></article>)}</div> : <div className="card empty"><Users size={26}/><strong>Nenhuma conta ainda</strong><span>Compartilhe o código de cadastro para que a equipe crie as primeiras contas.</span></div>}
+    {rows.length ? <div className="people-grid">{rows.map((person) => <article className="card person-card" key={person.id}><div className="avatar">{person.name.split(/\s+/).slice(0, 2).map((name) => name[0]).join("").toUpperCase()}</div><div><strong>{person.name}</strong><span>{person.pixelRole || "Integrante"}{person.projectName ? ` · ${person.projectName}` : ""}</span><small>{person.status === "ACTIVE" ? "Conta ativa" : `Conta ${person.status.toLowerCase()}`}{person.enteredYear ? ` · desde ${person.enteredYear}` : ""} · {person.email}</small></div><i className={`status-dot ${person.status.toLowerCase()}`} title={person.status}/></article>)}</div> : <div className="card empty"><Users size={26}/><strong>Nenhuma conta ainda</strong><span>Compartilhe o código de cadastro para que a equipe crie as primeiras contas.</span></div>}
     <section className="dashboard-columns people-columns">
       <div className="card dash-panel"><div className="panel-head"><div><h2>Integrantes da planilha</h2><p>Nomes, matrículas, projeto e presença importados</p></div><Link href="/dashboard/modules/pessoas">Gerenciar jornada →</Link></div>
         {imported.length ? <div className="table-scroll"><table className="data-table"><thead><tr><th>Nome</th><th>Matrícula</th><th>Projeto</th><th>Presença</th></tr></thead><tbody>{imported.map((person) => <tr key={person.id}><td>{person.name}</td><td>{person.matricula || "—"}</td><td>{person.linkedProject || person.currentAffiliation || "—"}</td><td>{person.attendanceStatus || "—"}{person.attendanceDate ? ` · ${new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(`${person.attendanceDate}T12:00:00Z`))}` : ""}</td></tr>)}</tbody></table></div> : <div className="empty compact"><Users size={21}/><span>Ainda não há pessoas importadas da planilha.</span></div>}
