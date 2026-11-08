@@ -44,9 +44,10 @@ export async function updateProject(formData: FormData) {
     const [before] = await tx.select().from(projects).where(eq(projects.id, id)).limit(1);
     if (!before) throw new Error("Projeto não encontrado.");
     const [after] = await tx.update(projects).set(values).where(eq(projects.id, id)).returning();
+    const beforeValues = before as unknown as Record<string, unknown>;
     const details = Object.fromEntries(Object.entries(values)
-      .filter(([key, value]) => (before[key as keyof typeof before] ?? "") !== (value ?? ""))
-      .map(([key, value]) => [key, { before: before[key as keyof typeof before] ?? null, after: value ?? null }]));
+      .filter(([key, value]) => (beforeValues[key] ?? "") !== (value ?? ""))
+      .map(([key, value]) => [key, { before: beforeValues[key] ?? null, after: value ?? null }]));
     if (Object.keys(details).length) await tx.insert(auditLogs).values({ actorId: user.id, action: "project.updated", objectType: "project", objectId: after.id, details });
   });
   revalidatePath("/dashboard");
@@ -344,4 +345,3 @@ export async function getRecentActivity() {
   ]);
   return { projectRows, taskRows, eventRows };
 }
-
