@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BriefcaseBusiness, Users, CalendarDays, ListTodo, History, BarChart3, FlaskConical, Gamepad2, Megaphone, FileCheck2, Trophy } from "lucide-react";
+import { LayoutDashboard, BriefcaseBusiness, Users, CalendarDays, ListTodo, History, BarChart3, FlaskConical, Gamepad2, Megaphone, FileCheck2, Trophy, UserRound, Globe2 } from "lucide-react";
 
-const links = [["/dashboard","Início",LayoutDashboard],["/dashboard/tasks","Meu Trabalho",ListTodo],["/dashboard/modules/projetos","Projetos & Produtos",BriefcaseBusiness],["/dashboard/projects","Portfólio",BriefcaseBusiness],["/dashboard/modules/pessoas","Pessoas & Jornada",Users],["/dashboard/people","Diretório",Users],["/dashboard/modules/governanca","Governança",BarChart3],["/dashboard/modules/pesquisa","Pesquisa",FlaskConical],["/dashboard/modules/sports","PIXEL Sports",Gamepad2],["/dashboard/modules/extensao","Extensão",Megaphone],["/dashboard/modules/arquivos","Arquivos & Aprovações",FileCheck2],["/dashboard/modules/gamificacao","Gamificação",Trophy],["/dashboard/calendar","Calendário",CalendarDays],["/dashboard/history","Histórico",History]] as const;
+const links = [["/dashboard","Início",LayoutDashboard],["/dashboard/profile","Meu perfil",UserRound],["/dashboard/tasks","Meu Trabalho",ListTodo],["/dashboard/modules/projetos","Projetos & Produtos",BriefcaseBusiness],["/dashboard/projects","Portfólio",BriefcaseBusiness],["/dashboard/modules/pessoas","Pessoas & Jornada",Users],["/dashboard/people","Diretório",Users],["/dashboard/public-settings","Visibilidade pública",Globe2],["/dashboard/modules/governanca","Governança",BarChart3],["/dashboard/modules/pesquisa","Pesquisa",FlaskConical],["/dashboard/modules/sports","PIXEL Sports",Gamepad2],["/dashboard/modules/extensao","Extensão",Megaphone],["/dashboard/modules/arquivos","Arquivos & Aprovações",FileCheck2],["/dashboard/modules/gamificacao","Gamificação",Trophy],["/dashboard/calendar","Calendário",CalendarDays],["/dashboard/history","Histórico",History]] as const;
 
 export function DashboardNav() {
   const pathname = usePathname();

@@ -11,16 +11,19 @@ const actionLabels: Record<string, string> = {
   "project.updated": "editou o projeto",
   "task.created": "criou a tarefa",
   "task.completed": "concluiu a tarefa",
+  "task.deleted": "excluiu a tarefa",
   "calendar_event.created": "criou um compromisso",
   "user.registered": "criou uma conta",
   "module_entry.created": "criou um registro",
   "module_entry.updated": "editou um registro",
+  "profile.updated": "atualizou o perfil",
+  "public_visibility.updated": "alterou as seções públicas",
 };
 const fieldLabels: Record<string, string> = {
-  name: "Nome", description: "Descrição", status: "Status", sheetAcronym: "Sigla", sheetType: "Tipo", sheetTargetAudience: "Público-alvo", title: "Título", projectId: "Projeto", category: "Área", assigneeId: "Responsável", dueDate: "Prazo", progress: "Progresso", points: "XP", beneficiaries: "Beneficiários", link: "Link", version: "Versão", platform: "Plataforma", team: "Equipe", target: "Meta", metricLabel: "Indicador", partner: "Parceiro", competency: "Competência", hours: "Carga horária semanal", score: "Desempenho", fileName: "Arquivo", fileVersion: "Versão do arquivo",
+  name: "Nome", email: "E-mail", pixelRole: "Cargo no PIXEL", enteredYear: "Ano de entrada", profileProjectId: "Projeto", profilePhoto: "Foto", showActiveMembers: "Membros ativos", showFormerMembers: "Ex-membros", showPortfolio: "Portfólio", showAwards: "Prêmios", description: "Descrição", status: "Status", sheetAcronym: "Sigla", sheetType: "Tipo", sheetTargetAudience: "Público-alvo", title: "Título", projectId: "Projeto", category: "Área", assigneeId: "Responsável", dueDate: "Prazo", progress: "Progresso", points: "XP", beneficiaries: "Beneficiários", link: "Link", version: "Versão", platform: "Plataforma", team: "Equipe", target: "Meta", metricLabel: "Indicador", partner: "Parceiro", competency: "Competência", hours: "Carga horária semanal", score: "Desempenho", fileName: "Arquivo", fileVersion: "Versão do arquivo",
 };
 const valueLabels: Record<string, string> = { PLANNING: "Planejamento", ACTIVE: "Ativo", PAUSED: "Pausado", COMPLETED: "Concluído", ARCHIVED: "Arquivado", TODO: "A fazer", IN_PROGRESS: "Em andamento", BLOCKED: "Bloqueado", DONE: "Concluído", CANCELLED: "Cancelado" };
-const objectLabels: Record<string, string> = { project: "Projeto", task: "Tarefa", calendar_event: "Agenda", user: "Equipe", projetos: "Projetos & Produtos", pessoas: "Pessoas & Jornada", governanca: "Governança", pesquisa: "Pesquisa", sports: "PIXEL Sports", extensao: "Extensão", arquivos: "Arquivos", gamificacao: "Gamificação" };
+const objectLabels: Record<string, string> = { project: "Projeto", task: "Tarefa", calendar_event: "Agenda", user: "Equipe", public_visibility: "Configuração pública", projetos: "Projetos & Produtos", pessoas: "Pessoas & Jornada", governanca: "Governança", pesquisa: "Pesquisa", sports: "PIXEL Sports", extensao: "Extensão", arquivos: "Arquivos", gamificacao: "Gamificação" };
 function showValue(value: unknown) {
   if (value === null || value === "") return "vazio";
   if (typeof value === "string" && valueLabels[value]) return valueLabels[value];

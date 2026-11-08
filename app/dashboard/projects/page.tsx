@@ -8,13 +8,16 @@ import { ClipboardList, FolderKanban, Plus } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 const states: Record<string, string> = { PLANNING: "Planejamento", ACTIVE: "Ativo", PAUSED: "Pausado", COMPLETED: "Concluído", ARCHIVED: "Arquivado" };
-export default async function ProjectsPage() {
+export default async function ProjectsPage({ searchParams }: { searchParams: Promise<{ saved?: string; created?: string }> }) {
+  const query = await searchParams;
   await requireUser();
   const rows = await getDb().select().from(projects).orderBy(desc(projects.createdAt));
   const [openTasks] = await getDb().select({ value: count() }).from(tasks).where(eq(tasks.status, "TODO"));
   const active = rows.filter((project) => project.status === "ACTIVE").length;
   const planning = rows.filter((project) => project.status === "PLANNING").length;
   return <><div className="heading"><div><p className="eyebrow">PORTFÓLIO</p><h1>Projetos &amp; Produtos</h1><p>Acompanhe iniciativas, equipes e entregas do grupo, da concepção ao pós-lançamento.</p><Link className="btn btn-small" href="/dashboard/modules/projetos"><ClipboardList size={16}/> Abrir ciclo de vida G3.01–G3.30</Link></div></div>
+    {query.saved === "1" && <p className="form-success" role="status">Alterações do projeto salvas.</p>}
+    {query.created === "1" && <p className="form-success" role="status">Projeto criado.</p>}
     <section className="metric-grid workspace-metrics"><div className="metric-card metric-blue"><span>Projetos cadastrados</span><strong>{rows.length}</strong><i><FolderKanban size={19}/></i><small>Portfólio atual do PIXEL</small></div><div className="metric-card metric-green"><span>Ativos</span><strong>{active}</strong><i><FolderKanban size={19}/></i><small>Em execução</small></div><div className="metric-card metric-purple"><span>Em planejamento</span><strong>{planning}</strong><i><Plus size={19}/></i><small>Preparação e concepção</small></div><Link className="metric-card metric-amber" href="/dashboard/tasks"><span>Tarefas abertas</span><strong>{openTasks.value}</strong><i><ClipboardList size={19}/></i><small>Entregas aguardando ação</small></Link></section>
     <section className="card form-card"><h2><Plus size={18}/> Novo projeto</h2><form action={createProject} className="form-grid">
       <label className="field">Nome<input name="name" required minLength={2} maxLength={180} placeholder="Ex.: Laboratório de jogos acessíveis"/></label>

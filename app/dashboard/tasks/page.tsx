@@ -1,8 +1,8 @@
-import { createTask, markTaskDone } from "@/lib/actions";
+import { createTask, deleteTask, markTaskDone } from "@/lib/actions";
 import { getDb } from "@/lib/db";
 import { projects, tasks } from "@/lib/db/schema";
 import { asc, desc, eq } from "drizzle-orm";
-import { Check, Circle, ListTodo } from "lucide-react";
+import { Check, Circle, ListTodo, Trash2 } from "lucide-react";
 import { requireUser } from "@/lib/auth/permissions";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +27,8 @@ export default async function TasksPage() {
     <div className="section-title"><h2>Lista de tarefas</h2><span>{rows.filter(t=>t.status!=="DONE").length} em aberto</span></div>
     <div className="task-list">{rows.map((task)=><article className={"card task-row " + (task.status==="DONE"?"done":"")} key={task.id}>
       {task.status==="DONE" ? <span className="task-check checked"><Check size={15}/></span> : <form action={markTaskDone}><input type="hidden" name="id" value={task.id}/><button className="task-check" aria-label={"Concluir " + task.title}><Circle size={20}/></button></form>}
-      <div className="task-main"><strong>{task.title}</strong><span>{task.projectName || "Pessoal"}{task.dueAt ? " · Prazo " + new Intl.DateTimeFormat("pt-BR").format(task.dueAt) : ""}</span>{task.description&&<small>{task.description}</small>}</div><span className={"badge priority-" + task.priority.toLowerCase()}>{priorities[task.priority]}</span>
+      <div className="task-main"><strong>{task.title}</strong><span>{task.projectName || "Pessoal"}{task.dueAt ? " · Prazo " + new Intl.DateTimeFormat("pt-BR").format(task.dueAt) : ""}</span>{task.description&&<small>{task.description}</small>}</div><span className={"badge priority-" + task.priority.toLowerCase()}>{priorities[task.priority]}</span><form action={deleteTask}><input type="hidden" name="id" value={task.id}/><button className="task-delete" type="submit" aria-label={"Excluir tarefa " + task.title} title="Excluir tarefa"><Trash2 size={15}/></button></form>
     </article>)}{!rows.length&&<div className="card empty"><ListTodo size={26}/><strong>Sua lista começa aqui</strong><span>Registre uma tarefa para organizar o trabalho do grupo.</span></div>}</div>
   </>;
 }
+

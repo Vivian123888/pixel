@@ -2,10 +2,10 @@
 
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { getDb } from "@/lib/db";
-import { auditLogs, calendarEvents, moduleEntries, moduleFileVersions, projects, tasks, users } from "@/lib/db/schema";
+import { auditLogs, calendarEvents, moduleEntries, moduleFileVersions, projects, publicVisibility, tasks, users } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth/permissions";
 import { hashPassword } from "@/lib/auth/password";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, isNotNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -38,19 +38,23 @@ export async function updateProject(formData: FormData) {
   const user = await requireUser();
   const id = z.string().uuid().parse(formData.get("id"));
   const data = projectInput.parse(Object.fromEntries(formData));
+  const values = { ...data, description: data.description || null, sheetAcronym: data.sheetAcronym || null, sheetType: data.sheetType || null, sheetTargetAudience: data.sheetTargetAudience || null };
   const db = getDb();
   await db.transaction(async (tx) => {
     const [before] = await tx.select().from(projects).where(eq(projects.id, id)).limit(1);
     if (!before) throw new Error("Projeto não encontrado.");
-    const [after] = await tx.update(projects).set(data).where(eq(projects.id, id)).returning();
-    const details = Object.fromEntries(Object.entries(data)
-      .filter(([key, value]) => (before[key as keyof typeof before] ?? "") !== (value ?? ""))
-      .map(([key, value]) => [key, { before: before[key as keyof typeof before] ?? null, after: value ?? null }]));
+    const [after] = await tx.update(projects).set(values).where(eq(projects.id, id)).returning();
+    const beforeValues = before as unknown as Record<string, unknown>;
+    const details = Object.fromEntries(Object.entries(values)
+      .filter(([key, value]) => (beforeValues[key] ?? "") !== (value ?? ""))
+      .map(([key, value]) => [key, { before: beforeValues[key] ?? null, after: value ?? null }]));
     if (Object.keys(details).length) await tx.insert(auditLogs).values({ actorId: user.id, action: "project.updated", objectType: "project", objectId: after.id, details });
   });
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/projects");
   revalidatePath("/dashboard/history");
+  revalidatePath("/");
+  redirect("/dashboard/projects?saved=1");
 }
 
 const taskInput = z.object({
@@ -95,6 +99,21 @@ export async function createCalendarEvent(formData: FormData) {
     const [created] = await tx.insert(calendarEvents).values({ ...data, startsAt, endsAt, createdBy: user.id }).returning({ id: calendarEvents.id });
     await tx.insert(auditLogs).values({ actorId: user.id, action: "calendar_event.created", objectType: "calendar_event", objectId: created.id, details: { title: { before: null, after: data.title } } });
   });
+  const flowUrl = process.env.PIXEL_TEAMS_FLOW_URL;
+  if (flowUrl) {
+    try {
+      const publicUrl = process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+      const response = await fetch(flowUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: `📅 ${data.title} · ${data.kind} · ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(startsAt)} · criado por ${user.name} · ${publicUrl}/dashboard/calendar` }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!response.ok) console.error("Power Automate respondeu com status", response.status);
+    } catch (error) {
+      console.error("Falha ao enviar lembrete da agenda para o Power Automate:", error);
+    }
+  }
   revalidatePath("/dashboard/calendar");
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/history");
@@ -114,6 +133,80 @@ export async function markTaskDone(formData: FormData) {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/tasks");
   revalidatePath("/dashboard/history");
+}
+
+export async function deleteTask(formData: FormData) {
+  const user = await requireUser();
+  const id = z.string().uuid().parse(formData.get("id"));
+  const db = getDb();
+  await db.transaction(async (tx) => {
+    const [task] = await tx.select({ title: tasks.title }).from(tasks).where(eq(tasks.id, id)).limit(1);
+    if (!task) return;
+    await tx.delete(tasks).where(eq(tasks.id, id));
+    await tx.insert(auditLogs).values({ actorId: user.id, action: "task.deleted", objectType: "task", objectId: id, details: { title: { before: task.title, after: null } } });
+  });
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/tasks");
+  revalidatePath("/dashboard/history");
+}
+
+const profileInput = z.object({
+  name: z.string().trim().min(2).max(160).refine((name) => name.split(/\s+/).length >= 2, "Informe nome e sobrenome."),
+  email: z.string().trim().toLowerCase().email().max(320),
+  pixelRole: z.string().trim().max(100).optional(),
+  enteredYear: z.preprocess((value) => value === "" || value == null ? undefined : value, z.coerce.number().int().min(1990).max(new Date().getFullYear()).optional()),
+  profileProjectId: z.string().uuid().optional().or(z.literal("")),
+});
+
+export async function updateMemberProfile(formData: FormData) {
+  const user = await requireUser();
+  const data = profileInput.parse(Object.fromEntries(formData));
+  const [emailOwner] = await getDb().select({ id: users.id }).from(users).where(eq(users.email, data.email)).limit(1);
+  if (emailOwner && emailOwner.id !== user.id) throw new Error("Este e-mail já está em uso.");
+  const photo = formData.get("photo");
+  let photoPatch: { profilePhotoData?: Buffer; profilePhotoType?: string } = {};
+  if (photo instanceof File && photo.size > 0) {
+    if (photo.size > 1024 * 1024 || !["image/jpeg", "image/png", "image/webp"].includes(photo.type)) throw new Error("A foto precisa ser PNG, JPG ou WebP e ter até 1 MB.");
+    photoPatch = { profilePhotoData: Buffer.from(await photo.arrayBuffer()), profilePhotoType: photo.type };
+  }
+  const db = getDb();
+  await db.transaction(async (tx) => {
+    const [before] = await tx.select({ name: users.name, email: users.email, pixelRole: users.pixelRole, enteredYear: users.enteredYear, profileProjectId: users.profileProjectId, hasPhoto: isNotNull(users.profilePhotoData) }).from(users).where(eq(users.id, user.id)).limit(1);
+    if (!before) throw new Error("Conta não encontrada.");
+    const values = { name: data.name, email: data.email, pixelRole: data.pixelRole || null, enteredYear: data.enteredYear ?? null, profileProjectId: data.profileProjectId || null, ...photoPatch };
+    await tx.update(users).set(values).where(eq(users.id, user.id));
+    const beforeValues: Record<string, unknown> = { name: before.name, email: before.email, pixelRole: before.pixelRole, enteredYear: before.enteredYear, profileProjectId: before.profileProjectId, hasPhoto: before.hasPhoto };
+    const afterValues: Record<string, unknown> = { name: data.name, email: data.email, pixelRole: data.pixelRole || null, enteredYear: data.enteredYear ?? null, profileProjectId: data.profileProjectId || null, hasPhoto: Boolean(photoPatch.profilePhotoData) || before.hasPhoto };
+    const changes = Object.fromEntries(Object.keys(afterValues).filter((key) => JSON.stringify(beforeValues[key] ?? null) !== JSON.stringify(afterValues[key] ?? null)).map((key) => [key === "hasPhoto" ? "profilePhoto" : key, { before: beforeValues[key] ?? null, after: afterValues[key] ?? null }]));
+    if (Object.keys(changes).length) await tx.insert(auditLogs).values({ actorId: user.id, action: "profile.updated", objectType: "user", objectId: user.id, details: changes });
+  });
+  revalidatePath("/");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/profile");
+  revalidatePath("/dashboard/people");
+  revalidatePath("/dashboard/history");
+  redirect("/dashboard/profile?saved=1");
+}
+
+export async function updatePublicVisibility(formData: FormData) {
+  const user = await requireUser();
+  const values = {
+    showActiveMembers: formData.get("showActiveMembers") === "on",
+    showFormerMembers: formData.get("showFormerMembers") === "on",
+    showPortfolio: formData.get("showPortfolio") === "on",
+    showAwards: formData.get("showAwards") === "on",
+  };
+  const db = getDb();
+  await db.transaction(async (tx) => {
+    const [before] = await tx.select().from(publicVisibility).where(eq(publicVisibility.id, 1)).limit(1);
+    await tx.insert(publicVisibility).values({ id: 1, ...values, updatedBy: user.id, updatedAt: new Date() }).onConflictDoUpdate({ target: publicVisibility.id, set: { ...values, updatedBy: user.id, updatedAt: new Date() } });
+    const changes = Object.fromEntries(Object.entries(values).filter(([key, value]) => before?.[key as keyof typeof before] !== value).map(([key, value]) => [key, { before: before?.[key as keyof typeof before] ?? null, after: value }]));
+    if (Object.keys(changes).length) await tx.insert(auditLogs).values({ actorId: user.id, action: "public_visibility.updated", objectType: "public_visibility", objectId: null, details: changes });
+  });
+  revalidatePath("/");
+  revalidatePath("/dashboard/public-settings");
+  revalidatePath("/dashboard/history");
+  redirect("/dashboard/public-settings?saved=1");
 }
 
 const optionalCount = (max: number) => z.preprocess((value) => value === "" || value == null ? undefined : value, z.coerce.number().int().min(0).max(max).optional());
@@ -209,7 +302,7 @@ export async function updateModuleEntry(formData: FormData) {
 export type RegistrationState = { error?: string };
 export async function registerAccount(_previous: RegistrationState, formData: FormData): Promise<RegistrationState> {
   const parsed = z.object({
-    name: z.string().trim().min(2).max(160),
+    name: z.string().trim().min(2).max(160).refine((name) => name.split(/\s+/).length >= 2, "Informe nome e sobrenome."),
     email: z.string().trim().toLowerCase().email().max(320),
     password: z.string().min(12).max(72),
     confirmPassword: z.string().min(12).max(72),
@@ -252,4 +345,3 @@ export async function getRecentActivity() {
   ]);
   return { projectRows, taskRows, eventRows };
 }
-
